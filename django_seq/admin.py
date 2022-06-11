@@ -59,7 +59,7 @@ class SequenceAdmin(admin.ModelAdmin):
     def formfield_for_dbfield(
         self,
         db_field: models.Field,
-        request: Optional[HttpRequest],
+        request: HttpRequest,
         **kwargs: Any,
     ) -> Optional[forms.Field]:
         if db_field.name == Sequence.KEY_FIELD_NAME:
