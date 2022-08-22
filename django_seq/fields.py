@@ -12,7 +12,6 @@ from typing import (
 from django.db.models import (
     Model,
     NOT_PROVIDED,
-    signals,
 )
 
 from django_seq._typing import PositiveBigIntegerField
@@ -83,7 +82,7 @@ class SequenceField(
         kwargs['nowait'] = self.nowait
         return name, key, args, kwargs
 
-    def _handle_pre_save_signal(
+    def handle_pre_save_signal(
         self,
         sender: Type[Model],
         instance: Model,
@@ -127,14 +126,9 @@ class SequenceField(
         name: str,
         private_only: bool = False,
     ) -> None:
+        from django_seq.globals import registry
 
-        model_options = get_model_options(model)
-
-        signals.pre_save.connect(
-            self._handle_pre_save_signal,
-            sender=model,
-            dispatch_uid=f'{model_options.label}.{name}.set_default_value',
-        )
+        registry.model_sequence_field_pairs.add((model, name, self))
 
         return super(SequenceField, self).contribute_to_class(
             model,

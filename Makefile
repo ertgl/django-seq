@@ -79,7 +79,17 @@ test.samples.issues:
 		python manage.py test issues
 
 
-test.samples: test.samples.issues test.samples.swappable
+test.samples.mti:
+	cd samples/mti && \
+		rm -f db.sqlite3 && \
+		rm -f items/migrations/*.py && \
+		touch items/migrations/__init__.py && \
+		python manage.py makemigrations items --no-header && \
+		python manage.py migrate && \
+		python manage.py test items
+
+
+test.samples: test.samples.swappable test.samples.issues test.samples.mti
 
 
 .PHONY: test
