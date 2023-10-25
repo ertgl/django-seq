@@ -2,6 +2,7 @@ from typing import (
     Any,
     Dict,
     Optional,
+    Sequence,
     Tuple,
     Type,
     TypeVar,
@@ -74,7 +75,7 @@ class SequenceField(
         self.nowait = nowait
         super(SequenceField, self).__init__(*args, **kwargs)
 
-    def deconstruct(self) -> Tuple[str, str, Tuple[Any, ...], Dict[str, Any]]:
+    def deconstruct(self) -> Tuple[str, str, Sequence[Any], Dict[str, Any]]:
         name, key, args, kwargs = super(SequenceField, self).deconstruct()
         key = 'django_seq.models.SequenceField'
         kwargs['key'] = self.key
