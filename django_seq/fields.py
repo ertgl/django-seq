@@ -1,5 +1,6 @@
 from typing import (
     Any,
+    Callable,
     Dict,
     Optional,
     Sequence,
@@ -11,9 +12,15 @@ from typing import (
 )
 
 from django.db.models import (
+    F,
+    Max,
     Model,
     NOT_PROVIDED,
+    OuterRef,
+    Q,
+    Subquery,
 )
+from django.db.models.constants import LOOKUP_SEP
 
 from django_seq._typing import PositiveBigIntegerField
 from django_seq.segmentation import (
@@ -50,6 +57,10 @@ class SequenceField(
 
     nowait: bool
 
+    fill_gaps: bool | Callable[[Model], bool]
+
+    resolve_integrity_errors: bool | Callable[[Model], bool]
+
     def __init__(
         self,
         *args,
@@ -60,6 +71,8 @@ class SequenceField(
         ] = NOT_PROVIDED,
         separator: str = '.',
         nowait: bool = False,
+        fill_gaps: bool | Callable[[Model], bool] = False,
+        resolve_integrity_errors: bool | Callable[[Model], bool] = False,
         blank: bool = True,
         null: bool = False,
         editable: bool = False,
@@ -73,6 +86,8 @@ class SequenceField(
         self.key = key
         self.separator = separator
         self.nowait = nowait
+        self.fill_gaps = fill_gaps
+        self.resolve_integrity_errors = resolve_integrity_errors
         super(SequenceField, self).__init__(*args, **kwargs)
 
     def deconstruct(self) -> Tuple[str, str, Sequence[Any], Dict[str, Any]]:
@@ -81,6 +96,8 @@ class SequenceField(
         kwargs['key'] = self.key
         kwargs['separator'] = self.separator
         kwargs['nowait'] = self.nowait
+        kwargs['fill_gaps'] = self.fill_gaps
+        kwargs['resolve_integrity_errors'] = self.resolve_integrity_errors
         return name, key, args, kwargs
 
     def handle_pre_save_signal(
@@ -89,8 +106,7 @@ class SequenceField(
         instance: Model,
         **kwargs,
     ) -> bool:
-
-        value = getattr(instance, self.name)
+        value = getattr(instance, self.name, None)
         if value is not None or self.default is not NOT_PROVIDED:
             return False
 
@@ -113,12 +129,112 @@ class SequenceField(
 
         sequence_model = get_sequence_model()
 
-        value = sequence_model.get_next_value(
-            evaluated_key,
-            nowait=self.nowait,
-        )
+        should_fill_gaps = self.fill_gaps
+        if callable(should_fill_gaps):
+            should_fill_gaps = should_fill_gaps(instance)
+
+        should_resolve_integrity_errors: bool | Callable[[Model], bool] = False
+        if not should_fill_gaps:
+            should_resolve_integrity_errors = self.resolve_integrity_errors
+            if callable(should_resolve_integrity_errors):
+                should_resolve_integrity_errors = should_resolve_integrity_errors(instance)
+
+        if should_fill_gaps:
+            next_number_sub_queryset = sender.objects.order_by(
+                self.name,
+            ).filter(
+                **{LOOKUP_SEP.join([self.name, 'gt']): OuterRef(self.name)},
+            ).values(
+                self.name,
+            )[:1]
+
+            gaps = sender.objects.order_by(
+                self.name,
+            ).annotate(
+                next_number=Subquery(next_number_sub_queryset),
+            ).filter(
+                (
+                    Q(
+                        **{LOOKUP_SEP.join(['next_number', 'isnull']): True},
+                    )
+                    | ~Q(
+                        next_number=F(self.name) + 1,
+                    )
+                ),
+            )
+
+            first_gap = gaps.first()
+
+            current_value: int
+
+            if first_gap is not None:
+                current_value = getattr(first_gap, self.name)
+            else:
+                current_value = sender.objects.aggregate(
+                    max_value=Max(
+                        self.name,
+                        default=0,
+                        output_field=self.__class__(),
+                    ),
+                )['max_value']
+
+            value = current_value + 1
+
+            sequence_model.set_current_value(evaluated_key, value)
+
+        elif should_resolve_integrity_errors:
+            current_value = sequence_model.get_current_value(evaluated_key)
+
+            next_number_sub_queryset = sender.objects.order_by(
+                self.name,
+            ).filter(
+                **{LOOKUP_SEP.join([self.name, 'gt']): OuterRef(self.name)},
+            ).values(
+                self.name,
+            )[:1]
+
+            gaps = sender.objects.order_by(
+                self.name,
+            ).filter(
+                **{LOOKUP_SEP.join([self.name, 'gt']): current_value},
+            ).annotate(
+                next_number=Subquery(next_number_sub_queryset),
+            ).filter(
+                (
+                    Q(
+                        **{LOOKUP_SEP.join(['next_number', 'isnull']): True},
+                    )
+                    | ~Q(
+                        next_number=F(self.name) + 1,
+                    )
+                ),
+            )
+
+            first_gap = gaps.first()
+
+            if first_gap is not None:
+                current_value = getattr(first_gap, self.name)
+            else:
+                current_value = sender.objects.aggregate(
+                    max_value=Max(
+                        self.name,
+                        default=0,
+                        output_field=self.__class__(),
+                    ),
+                )['max_value']
+
+            value = current_value + 1
+
+            sequence_model.set_current_value(evaluated_key, value)
+
+        else:
+            value = sequence_model.get_next_value(
+                evaluated_key,
+                nowait=self.nowait,
+            )
 
         setattr(instance, self.name, value)
+
         return True
 
     def contribute_to_class(

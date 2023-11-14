@@ -41,7 +41,7 @@ table can be rolled back automatically. `django-seq` follows this approach.
 **Table:** sequences
 
 | **key** | **value** |
-|---------|-----------|
+| ------- | --------- |
 | ...     | ...       |
 
 
@@ -117,7 +117,7 @@ from django_seq.models import SequenceField
 
 class Invoice(models.Model):
 
-    index = SequenceField()
+    number = SequenceField()
 ```
 
 
@@ -149,13 +149,64 @@ class Issue(models.Model):
     )
 
     class Meta:
-        
+
         unique_together = (('project', 'index'),)
 ```
 
 The sequence name will be in the format of `projects.<project_id>.issues`
 where `<project_id>` is the primary key of the project. Thus, each project
 will have its own sequence for its issues, that starts from `1`.
+
+
+#### Enabling automatic gap filling
+
+To make the sequence generator fill the gaps, set `fill_gaps` parameter as `True`
+or a callable that takes model instance as a parameter and returns `True`. This is
+useful when you want the deleted IDs to be reused. So, the sequence generator will
+generate an ID based on the first gap it finds, then sets the current value of the
+sequence to that new ID.
+
+```python
+from django.db import models
+from django_seq.models import SequenceField
+
+
+class Item(models.Model):
+
+    number = SequenceField(
+      fill_gaps=True,
+    )
+```
+
+
+#### Enabling automatic integrity error resolution
+
+In some cases, the sequence generator may fail to generate a unique ID. For example,
+when the sequence is used in a unique constraint and the current value is updated
+manually in a way that causes the generator to generate an ID that already exists.
+In such cases, the operation raises `IntegrityError`.
+
+To make the sequence generator resolve the integrity errors automatically, set
+`resolve_integrity_errors` parameter as `True` or a callable that takes model instance
+as a parameter and returns `True`. So, the sequence generator will generate an ID based
+on the first gap it finds after the last generated ID, then sets the current value of the
+sequence to that new ID.
+
+```python
+from django.db import models
+from django_seq.models import SequenceField
+
+
+def _should_resolve_integrity_errors(invoice: "Invoice") -> bool:
+  return True
+
+
+class Invoice(models.Model):
+
+    number = SequenceField(
+      resolve_integrity_errors=_should_resolve_integrity_errors,
+    )
+```
 
 
 #### Drawbacks
@@ -178,10 +229,13 @@ help to solve some tradeoff problems.
 - `get_next_value`: Returns the next value of the sequence. Every time it's
     triggered, the sequence will be updated with the next value.
 - `get_current_value`: Returns the current value of the sequence.
+- `set_current_value`: Sets the current value of the sequence as the given
+    value and returns the value back.
+
 
 #### Using the low level API
 
-Calling `get_next_value` always must be within a transaction.
+Calling `get_next_value` or `set_current_value` always must be within a transaction.
 
 ```python
 from django.db import transaction

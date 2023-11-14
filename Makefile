@@ -58,15 +58,14 @@ test.app: django.clean django.migrations django.migrate
 		python manage.py test django_seq
 
 
-test.samples.swappable:
-	cd samples/swappable && \
+test.samples.autofill:
+	cd samples/autofill && \
 		rm -f db.sqlite3 && \
-		rm -f sequences/migrations/*.py && \
-		touch sequences/migrations/__init__.py && \
-		python manage.py makemigrations sequences --no-header && \
-		python ../../dev/django/misc/prepare_swappable_migration.py && \
+		rm -f items/migrations/*.py && \
+		touch items/migrations/__init__.py && \
+		python manage.py makemigrations items --no-header && \
 		python manage.py migrate && \
-		python manage.py test sequences
+		python manage.py test items
 
 
 test.samples.issues:
@@ -89,7 +88,18 @@ test.samples.mti:
 		python manage.py test items
 
 
-test.samples: test.samples.swappable test.samples.issues test.samples.mti
+test.samples.swappable:
+	cd samples/swappable && \
+		rm -f db.sqlite3 && \
+		rm -f sequences/migrations/*.py && \
+		touch sequences/migrations/__init__.py && \
+		python manage.py makemigrations sequences --no-header && \
+		python ../../dev/django/misc/prepare_swappable_migration.py && \
+		python manage.py migrate && \
+		python manage.py test sequences
+
+
+test.samples: test.samples.autofill test.samples.issues test.samples.mti test.samples.swappable
 
 
 .PHONY: test

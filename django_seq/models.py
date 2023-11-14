@@ -78,13 +78,14 @@ class AbstractSequence(models.Model):
     def get_current_value(
         cls,
         key: str,
+        default_value: int = 0,
     ) -> int:
         sequence = cls.objects.filter(
             **{
                 cls.KEY_FIELD_NAME: key,
             },
         ).first()
-        return getattr(sequence, cls.VALUE_FIELD_NAME, 0)
+        return getattr(sequence, cls.VALUE_FIELD_NAME, default_value)
 
     @classmethod
     def get_next_value(
@@ -103,6 +104,26 @@ class AbstractSequence(models.Model):
         value = getattr(sequence, cls.VALUE_FIELD_NAME)
         if not is_created:
             value = value + 1
+            setattr(sequence, cls.VALUE_FIELD_NAME, value)
+            sequence.save()
+        return value
+
+    @classmethod
+    def set_current_value(
+        cls,
+        key: str,
+        value: int,
+        nowait: bool = False,
+    ) -> int:
+        sequence, is_created = cls.get_or_create(
+            key,
+            defaults={
+                cls.VALUE_FIELD_NAME: value,
+            },
+            select_for_update=True,
+            nowait=nowait,
+        )
+        if not is_created:
             setattr(sequence, cls.VALUE_FIELD_NAME, value)
             sequence.save()
         return value
