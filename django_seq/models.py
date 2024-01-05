@@ -62,7 +62,7 @@ class AbstractSequence(models.Model):
             cls.VALUE_FIELD_NAME: 0,
         }
         queryset: Union[
-            'models.BaseManager[AbstractSequence]',
+            'models.Manager[AbstractSequence]',
             'models.QuerySet[AbstractSequence]',
         ] = cls.objects
         if select_for_update:
