@@ -2,9 +2,7 @@
 
 Django implementation of gapless sequences, with a configurable field type.
 
----
-
-### Table of Contents
+## Table of Contents
 
 - [Why?](#why)
 - [How?](#how)
