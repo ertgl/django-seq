@@ -1,11 +1,26 @@
-### [django-seq](#)
+# django-seq
 
 Django implementation of gapless sequences, with a configurable field type.
 
 ---
 
+### Table of Contents
 
-### Why?
+- [Why?](#why)
+- [How?](#how)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [SequenceField](#sequencefield)
+    - [Generating IDs using SequenceField](#generating-ids-using-sequencefield)
+    - [Generating IDs based on dependant fields](#generating-ids-based-on-dependant-fields)
+    - [Enabling automatic gap filling](#enabling-automatic-gap-filling)
+    - [Enabling automatic integrity error resolution](#enabling-automatic-integrity-error-resolution)
+    - [Drawbacks](#drawbacks)
+  - [Low Level API](#low-level-api)
+    - [Using the low level API](#using-the-low-level-api)
+- [License](#license)
+
+## Why?
 
 Some departments require their data to have IDs in sequential order. For
 example in a financial system, the invoice IDs would likely need to be in
@@ -30,7 +45,7 @@ algorithms used in
 environments.
 
 
-### How?
+## How?
 
 One way to solve this problem is to take control of sequence generation
 through a table and make the process part of the `transaction` to be
@@ -53,7 +68,7 @@ with value `1`. At the end of both cases, set data's ID to the value
 of the sequence.
 
 
-### Installation
+## Installation
 
 `django-seq` is available on [PyPI](https://pypi.org/project/django-seq/).
 It can be installed and upgraded using [pip](https://pip.pypa.io):
@@ -63,7 +78,7 @@ pip install django-seq
 ```
 
 
-### Usage
+## Usage
 
 `django-seq` provides both high and low level APIs to manage sequences.
 While the high level one increases the development speed, the low level one
@@ -249,3 +264,10 @@ with transaction.atomic():
     value = Sequence.get_next_value('projects.1.issues')
     assert Sequence.get_current_value('projects.1.issues') == value
 ```
+
+## License
+
+This project is licensed under the
+[MIT License](https://opensource.org/license/mit).
+
+See the [LICENSE](LICENSE) file for more information.
