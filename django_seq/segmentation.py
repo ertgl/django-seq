@@ -77,7 +77,7 @@ class SequenceKeyEvaluator:
         instance: Model,
         segment: F,
     ) -> str:
-        f_name_split = segment.name.split(LOOKUP_SEP)
+        f_name_split = segment.name.split(LOOKUP_SEP)  # type: ignore[attr-defined]
         acc = instance
         for f_name in f_name_split:
             acc = getattr(acc, f_name)
